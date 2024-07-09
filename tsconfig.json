@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "ESNext",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+		"moduleResolution": "node",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+		"strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "module": "ESNext",
+    "noEmit": true,
+		"noImplicitAny": true,
+    "noImplicitReturns": false,
+    "noImplicitThis": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+  }
+}

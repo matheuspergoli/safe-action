@@ -1,0 +1,69 @@
+{
+	"name": "safe-action",
+	"version": "0.0.0",
+	"description": "Simple type-safe actions",
+	"author": "Matheus Pergoli <https://matheuspergoli-portfolio.vercel.app>",
+	"main": "dist/index.js",
+	"module": "dist/index.mjs",
+	"typings": "dist/index.d.ts",
+	"scripts": {
+		"build": "tsup",
+		"format": "prettier --write \"src/**/*.{ts,tsx}\"",
+		"clean": "find . -name node_modules -o -name dist -type d -prune | xargs rm -rf"
+	},
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"module": "./dist/index.mjs",
+			"import": "./dist/index.mjs",
+			"require": "./dist/index.js",
+			"default": "./dist/index.mjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/matheuspergoli/safe-action.git"
+	},
+	"bugs": {
+		"url": "http://github.com/matheuspergoli/safe-action/issues"
+	},
+	"license": "MIT",
+	"pnpm": {
+		"updateConfig": {
+			"ignoreDependencies": [
+				"eslint"
+			]
+		}
+	},
+	"devDependencies": {
+		"@changesets/cli": "^2.27.7",
+		"@ianvs/prettier-plugin-sort-imports": "^4.3.0",
+		"@typescript-eslint/eslint-plugin": "^7.16.0",
+		"@typescript-eslint/parser": "^7.16.0",
+		"eslint": "^8.57.0",
+		"eslint-plugin-filenames": "^1.3.2",
+		"next": "^14.2.4",
+		"prettier": "^3.3.2",
+		"tsup": "^8.1.0",
+		"typescript": "^5.5.3",
+		"zod": "^3.23.8"
+	},
+	"peerDependencies": {
+		"next": ">=14.2.4",
+		"typescript": ">=4.8.2",
+		"zod": ">=3.20.0"
+	},
+	"keywords": [
+		"action",
+		"safe",
+		"type-safe",
+		"typescript",
+		"zod",
+		"nextjs",
+		"react"
+	]
+}
