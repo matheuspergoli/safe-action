@@ -24,46 +24,46 @@ import { CreateAction, ActionError } from "safe-action"
 // Você pode adicionar metadados que serão compartilhados entre os middlewares
 // Meta deve ser um objeto
 interface Meta {
-	span: string
+  span: string
 }
 
 // Você pode inicializar o contexto da action
 // Deve ser uma função com essas assinaturas: () => object | () => Promise<object>
 // ⚠️ Caso não inicialize o contexto inicial, ele irá iniciar um objeto: unknown - vazio
 const context = async () => {
-	const session = getSession()
+  const session = getSession()
 
-	return {
-		prisma,
-		session
-	}
+  return {
+    prisma,
+    session
+  }
 }
 
 const action = CreateAction.meta<Meta>().context<typeof context>().create({
-	defaultMeta: { span: "global" },
-	defaultContext: context,
+  defaultMeta: { span: "global" },
+  defaultContext: context,
 
-	// ✅ Todos os erros que forem lançados dentro das actions vão cair aqui também
-	errorHandler: (error) => {
-		console.log(error)
-	}
+  // ✅ Todos os erros que forem lançados dentro das actions vão cair aqui também
+  errorHandler: (error) => {
+    console.log(error)
+  }
 })
 
 export const publicAction = action
 
 export const authedAction = action.middleware(async ({ ctx, next }) => {
-	if (!ctx.session) { // ⚠️ Vamos garantir que nessa action tenha uma session
-		throw new ActionError({
-			code: "UNAUTHORIZED",
-			message: "You must be logged in to perform this action"
-		})
-	}
+  if (!ctx.session) { // ⚠️ Vamos garantir que nessa action tenha uma session
+    throw new ActionError({
+      code: "UNAUTHORIZED",
+      message: "You must be logged in to perform this action"
+    })
+  }
 
-	return next({
-		ctx: {
-			session: ctx.session // ✅ Passamos o contexto adiante inferindo a session
-		}
-	})
+  return next({
+    ctx: {
+      session: ctx.session // ✅ Passamos o contexto adiante inferindo a session
+    }
+  })
 })
 ```
 
@@ -85,20 +85,20 @@ import { z } from "zod"
 import { authedAction } from "src/server/root.ts"
 
 export const myAction = authedAction
-	.input(z.object({ name: z.string() }))
-	.input(z.object({ age: z.number() }))
+  .input(z.object({ name: z.string() }))
+  .input(z.object({ age: z.number() }))
 
-	// input terá seu tipo inferido com base nos métodos de parser
-	// ✅ input: { name: string; age: number }
-	// ✅ ctx: { session: Session }
-	.execute(async ({ input, ctx }) => {
-		// faça alguma coisa com os dados
+  // input terá seu tipo inferido com base nos métodos de parser
+  // ✅ input: { name: string; age: number }
+  // ✅ ctx: { session: Session }
+  .execute(async ({ input, ctx }) => {
+  // faça alguma coisa com os dados
 
-		// ✅ retorno inferido automaticamente
-		return {
-			message: `${input.name} ${input.age}`,
-		}
-	})
+    // ✅ retorno inferido automaticamente
+    return {
+      message: `${input.name} ${input.age}`,
+    }
+  })
 ```
 ### Utilizando um Parser de output para validação do retorno da action
 > [!TIP]
@@ -118,23 +118,23 @@ import { z } from "zod"
 import { authedAction } from "src/server/root.ts"
 
 export const myAction = authedAction
-	.input(z.object({ name: z.string() }))
-	.input(z.object({ age: z.number() }))
-	.output(z.object({ name: z.string() }))
-	.output(z.object({ age: z.number() }))
+  .input(z.object({ name: z.string() }))
+  .input(z.object({ age: z.number() }))
+  .output(z.object({ name: z.string() }))
+  .output(z.object({ age: z.number() }))
 
-	// input terá seu tipo inferido com base nos métodos de parser
-	// ✅ input: { name: string; age: number }
-	// ✅ ctx: { session: Session }
-	.execute(async ({ input, ctx }) => {
-	// faça alguma coisa com os dados
+  // input terá seu tipo inferido com base nos métodos de parser
+  // ✅ input: { name: string; age: number }
+  // ✅ ctx: { session: Session }
+  .execute(async ({ input, ctx }) => {
+  // faça alguma coisa com os dados
 
-	// ✅ retorno inferido com base nos parsers de output
-	return {
-			age: input.age,
-			name: input.name
-		}
-	})
+  // ✅ retorno inferido com base nos parsers de output
+  return {
+      age: input.age,
+      name: input.name
+    }
+  })
 ```
 
 ### Executando uma action em um server component
@@ -143,22 +143,22 @@ export const myAction = authedAction
 import { myAction } from "src/server/user"
 
 export default async function Page() {
-	// ✅ Parâmetros tipados de acordo com os parsers de input
-	const result = await myAction({ name: "John doe", age: 30 })
+  // ✅ Parâmetros tipados de acordo com os parsers de input
+  const result = await myAction({ name: "John doe", age: 30 })
 
-	return (
-		<div>
-			{/* ⚠️ Sempre se deve verificar para ter acesso aos dados */}
-			{result.success ? (
-				<>
-					<h1>{result.data.name}</h1>
-					<p>{result.data.age}</p>
-				</>
-			) : (
-				<div>{result.error.message}</div>
-			)}
-		</div>
-	)
+  return (
+    <div>
+      {/* ⚠️ Sempre se deve verificar para ter acesso aos dados */}
+      {result.success ? (
+        <>
+          <h1>{result.data.name}</h1>
+          <p>{result.data.age}</p>
+        </>
+      ) : (
+        <div>{result.error.message}</div>
+      )}
+    </div>
+  )
 }
 ```
 ### Executando uma action em um client component
@@ -179,29 +179,29 @@ import { toast } from "sonner"
 type Data = ActionInput<typeof myAction> // ✅ Data = { name: string; age: number }
 
 export const useCustomHook = () => {
-	const [isPending, startTransition] = React.useTransition()
+  const [isPending, startTransition] = React.useTransition()
 
-	// Podemos criar um tipo para receber na função (randomName)
-	const randomName = ({ name, age }: Data) => {
-		startTransition(async () => {
-			const result = await myAction({ name, age })
+  // Podemos criar um tipo para receber na função (randomName)
+  const randomName = ({ name, age }: Data) => {
+    startTransition(async () => {
+      const result = await myAction({ name, age })
 
-			if (!result.success) {
-				// ✅ Você pode mostrar algum alerta ou toast para o usuário
-				toast("Algo de errado aconteceu", {
-					description: result.error.message
-				})
+      if (!result.success) {
+        // ✅ Você pode mostrar algum alerta ou toast para o usuário
+        toast("Algo de errado aconteceu", {
+          description: result.error.message
+        })
 
-				// ⚠️ return para parar o fluxo assim o resultado de sucesso será inferido
-				return
-			}
+        // ⚠️ return para parar o fluxo assim o resultado de sucesso será inferido
+        return
+      }
 
-			toast("Action executada com sucesso", {
-				description: `Dados recebidos ${result.data.name} ${result.data.age}`
-			})
-		})
-	}
+      toast("Action executada com sucesso", {
+        description: `Dados recebidos ${result.data.name} ${result.data.age}`
+      })
+    })
+  }
 
-	return { isPending, randomName }
+  return { isPending, randomName }
 }
 ```
