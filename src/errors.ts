@@ -68,6 +68,8 @@ type Failure = {
 
 export type Result<T> = Success<T> | Failure
 
+export type ErrorHandler = (error: JSONError) => void | Promise<void>
+
 export const isSuccess = <T>(result: Result<T>): result is Success<T> => {
 	return result.success
 }
