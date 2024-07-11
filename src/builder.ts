@@ -29,6 +29,8 @@ type CreateObjectFromShape<T extends z.ZodRawShape> = {
 type InferOutput<Data, Output> = Output extends AnyNonNullish ? Output : Data
 type InferSchema<T> = CreateObjectFromShape<RetrieveShape<T>>
 
+export type ActionInput<T> = T extends (input: infer Input) => infer _R ? Input : never
+
 export type ActionBuilder<Input, Output, Context, Meta> = {
 	input<$Schema>(
 		schema: CheckSchema<$Schema>
