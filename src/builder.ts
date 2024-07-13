@@ -32,24 +32,105 @@ type InferSchema<T> = CreateObjectFromShape<RetrieveShape<T>>
 export type ActionInput<T> = T extends (input: infer Input) => infer _R ? Input : never
 
 export type ActionBuilder<Input, Output, Context, Meta> = {
+	/**
+	 *
+	 * Add a zod schema to validate the action input
+	 *
+	 * If you chain this method, the schema will be merged with the previous one
+	 *
+	 * It needs to be a zod object
+	 *
+	 * @param schema Zod Schema
+	 *
+	 * @example
+	 * action.input(z.object({ name: z.string() }))
+	 *
+	 * */
 	input<$Schema>(
 		schema: CheckSchema<$Schema>
 	): ActionBuilder<Prettify<Input & InferSchema<$Schema>>, Output, Context, Meta>
 
+	/**
+	 *
+	 * Add a zod schema to validate action return value
+	 *
+	 * If you chain this method, the schema will be merged with the previous one
+	 *
+	 * It needs to be a zod object
+	 *
+	 * @param schema Zod Schema
+	 *
+	 * @example
+	 * action.output(z.object({ name: z.string() }))
+	 *
+	 * */
 	output<$Schema>(
 		schema: CheckSchema<$Schema>
 	): ActionBuilder<Input, Prettify<Output & InferSchema<$Schema>>, Context, Meta>
 
+	/**
+	 *
+	 * Server handler function
+	 *
+	 * You have access to the context and input data
+	 *
+	 * @param handler Handler function that will be executed when the action is called
+	 *
+	 * @example
+	 * action.execute(async ({ ctx, input }) => {
+	 *    return { name: "John Doe" }
+	 * }
+	 *
+	 * */
 	execute<Data>(
 		handler: ExecuteHandler<Input, InferOutput<Data, Output>, Context>
 	): ExecuteReturnFn<Input, InferOutput<Data, Output>>
 
+	/**
+	 *
+	 * Add a middleware function to the action
+	 *
+	 * Middleware functions are executed in the order they are added
+	 *
+	 * You can access the meta information, context, input data and modify the context
+	 *
+	 * If you want type-safe input data, you need to chain the input method before the middleware
+	 *
+	 * If you chain this method, the middleware function will be added to the stack
+	 *
+	 * @param middlewareFn Middleware function
+	 *
+	 * @example
+	 * action.middleware(async ({ meta, ctx, input, next }) => {
+	 *     return next({ ctx: { user: "John Doe" } })
+	 * })
+	 *
+	 * */
 	middleware<NextContext>(
 		middlewareFn: MiddlewareFn<Context, NextContext, Input, Meta>
 	): ActionBuilder<Input, Output, Prettify<Context & NextContext>, Meta>
 
+	/**
+	 *
+	 * Access to the meta information added to the action
+	 *
+	 * @param meta Meta information
+	 *
+	 * You can modify the values of the meta object but you can't change the type once it's
+	 * set in the CreateAction class
+	 *
+	 * If you chain this method, the meta object will be shallow merged
+	 *
+	 * @example action.meta({ name: "action-name" })
+	 *
+	 * */
 	meta(meta: Meta): ActionBuilder<Input, Output, Context, Meta>
 
+	/**
+	 *
+	 * @internal Definitions of the action builder
+	 *
+	 * */
 	_def: ActionBuilderDef<Meta, Context>
 }
 
