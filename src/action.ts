@@ -1,15 +1,27 @@
 import { createActionBuilder, type ActionBuilder } from "./builder"
 import { ActionError, type ErrorHandler } from "./errors"
 
-type CreateOptions<Context, Meta> = {
-	defaultMeta?: Meta
-	defaultContext?: Context
-	errorHandler?: ErrorHandler
-}
-
 type ContextFn = () => Promise<object> | object
 
-type ReturnActionBuilder<T extends ActionBuilder<any, any, any, any>> = Omit<T, "_def">
+type CreateOptions<Context, Meta> = [Context, Meta] extends [ContextFn, object]
+	? {
+			defaultMeta: Meta
+			defaultContext: Context
+			errorHandler?: ErrorHandler
+		}
+	: [Context, Meta] extends [ContextFn, unknown]
+		? {
+				defaultContext: Context
+				errorHandler?: ErrorHandler
+			}
+		: [Context, Meta] extends [unknown, object]
+			? {
+					defaultMeta: Meta
+					errorHandler?: ErrorHandler
+				}
+			: {
+					errorHandler?: ErrorHandler
+				}
 
 type Unwrap<T> = T extends () => Promise<infer U>
 	? Awaited<U>
@@ -28,22 +40,22 @@ class CreateActionBuilder<Context, Meta> {
 
 	create(
 		opts?: CreateOptions<Context, Meta>
-	): ReturnActionBuilder<ActionBuilder<unknown, unknown, Unwrap<Context>, Meta>> {
-		if (opts?.defaultContext && typeof opts.defaultContext !== "function") {
+	): ActionBuilder<unknown, unknown, Unwrap<Context>, Meta> {
+		if (opts && "defaultContext" in opts && typeof opts.defaultContext !== "function") {
 			throw new ActionError({
 				code: "ERROR",
-				message: "defaultContext must be a function that returns an object"
+				message: "defaultContext must be a function"
 			})
 		}
 
-		if (opts?.defaultMeta && typeof opts.defaultMeta !== "object") {
+		if (opts && "defaultMeta" in opts && typeof opts.defaultMeta !== "object") {
 			throw new ActionError({
 				code: "ERROR",
 				message: "defaultMeta must be an object"
 			})
 		}
 
-		if (opts?.errorHandler && typeof opts.errorHandler !== "function") {
+		if (opts && "errorHandler" in opts && typeof opts.errorHandler !== "function") {
 			throw new ActionError({
 				code: "ERROR",
 				message: "errorHandler must be a function"
@@ -51,9 +63,9 @@ class CreateActionBuilder<Context, Meta> {
 		}
 
 		return createActionBuilder<Unwrap<Context>, Meta>({
-			meta: opts?.defaultMeta,
 			errorHandler: opts?.errorHandler,
-			defaultContext: opts?.defaultContext
+			meta: opts && "defaultMeta" in opts ? opts.defaultMeta : undefined,
+			defaultContext: opts && "defaultContext" in opts ? opts.defaultContext : undefined
 		})
 	}
 }
