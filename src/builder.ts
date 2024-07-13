@@ -289,6 +289,7 @@ export function createActionBuilder<Context, Meta>(
 					if (formattedError.code === "NEXT_ERROR") {
 						throw error
 					}
+
 					return { success: false, error: formattedError }
 				}
 			}
