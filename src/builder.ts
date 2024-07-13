@@ -71,9 +71,9 @@ type ExecuteReturnFn<Input, Data> = Input extends AnyNonNullish
 
 type ActionBuilderDef<Meta, Context> = {
 	meta: Meta
-	context: Context
 	inputs: Schema[]
 	outputs: Schema[]
+	defaultContext: Context
 	middlewares: AnyMiddlewareFn[]
 	errorHandler?: ErrorHandler
 }
@@ -86,17 +86,18 @@ function createNewActionBuilder(
 	def1: AnyActionBuilderDef,
 	def2: Partial<AnyActionBuilderDef>
 ): AnyActionBuilder {
-	const { inputs, outputs, middlewares, meta, context: ctx } = def2
+	const { inputs, outputs, middlewares, meta } = def2
 
 	const errorHandler = def2.errorHandler ?? def1.errorHandler
+	const defaultContext = def2.defaultContext ?? def1.defaultContext
 
 	return createActionBuilder({
 		errorHandler,
+		defaultContext,
 		inputs: [...def1.inputs, ...(inputs ?? [])],
 		outputs: [...def1.outputs, ...(outputs ?? [])],
 		middlewares: [...def1.middlewares, ...(middlewares ?? [])],
-		meta: def1.meta && meta ? { ...def1.meta, ...meta } : meta ?? def1.meta,
-		context: def1.context && ctx ? { ...def1.context, ...ctx } : ctx ?? def1.context
+		meta: def1.meta && meta ? { ...def1.meta, ...meta } : meta ?? def1.meta
 	})
 }
 
@@ -105,10 +106,10 @@ export function createActionBuilder<Context, Meta>(
 ): ActionBuilder<unknown, unknown, Context, Meta> {
 	const _def: AnyActionBuilderDef = {
 		meta: {},
-		context: {},
 		inputs: [],
 		outputs: [],
 		middlewares: [],
+		defaultContext: {},
 		...initDef
 	}
 
@@ -182,20 +183,24 @@ export function createActionBuilder<Context, Meta>(
 		const middlewareFn = _def.middlewares[idx]
 
 		if (middlewareFn) {
-			return await Promise.resolve(
-				middlewareFn({
-					meta,
-					input,
-					ctx: prevCtx,
-					next: async ({ ctx }) => {
-						return await executeMiddlewareStack({
-							idx: idx + 1,
-							prevCtx: ctx,
-							input
-						})
-					}
-				})
-			)
+			const resultFn = middlewareFn({
+				meta,
+				ctx: prevCtx,
+				input,
+				next: async ({ ctx }) => {
+					return await executeMiddlewareStack({
+						idx: idx + 1,
+						prevCtx: ctx,
+						input
+					})
+				}
+			})
+
+			if (resultFn instanceof Promise) {
+				return await resultFn
+			}
+
+			return resultFn
 		}
 
 		return prevCtx
@@ -203,17 +208,22 @@ export function createActionBuilder<Context, Meta>(
 
 	const executeMiddleware = async <T>(input: unknown): Promise<Result<T>> => {
 		try {
-			let context = {}
+			let defaultContext = {}
 
-			if (typeof _def.context === "function") {
-				context = await Promise.resolve(_def.context())
+			if (typeof _def.defaultContext !== "function") {
+				throw new ActionError({
+					code: "INTERNAL_ERROR",
+					message: "defaultContext must be a function"
+				})
 			}
 
-			if (typeof _def.context === "object") {
-				context = _def.context
+			defaultContext = _def.defaultContext()
+
+			if (defaultContext instanceof Promise) {
+				defaultContext = await defaultContext
 			}
 
-			const ctx = await executeMiddlewareStack({ prevCtx: context, input })
+			const ctx = await executeMiddlewareStack({ prevCtx: defaultContext, input })
 
 			return { success: true, data: ctx as T }
 		} catch (error) {
