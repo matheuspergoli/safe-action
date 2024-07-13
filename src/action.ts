@@ -1,7 +1,7 @@
 import { createActionBuilder, type ActionBuilder } from "./builder"
-import { type ErrorHandler } from "./errors"
+import { ActionError, type ErrorHandler } from "./errors"
 
-type CreateOptions<Context extends ContextFn, Meta extends object> = {
+type CreateOptions<Context, Meta> = {
 	defaultMeta?: Meta
 	defaultContext?: Context
 	errorHandler?: ErrorHandler
@@ -17,7 +17,7 @@ type Unwrap<T> = T extends () => Promise<infer U>
 		? U
 		: T
 
-class CreateActionBuilder<Context extends ContextFn, Meta extends object> {
+class CreateActionBuilder<Context, Meta> {
 	meta<NewMeta extends object>() {
 		return new CreateActionBuilder<Context, NewMeta>()
 	}
@@ -29,6 +29,27 @@ class CreateActionBuilder<Context extends ContextFn, Meta extends object> {
 	create(
 		opts?: CreateOptions<Context, Meta>
 	): ReturnActionBuilder<ActionBuilder<unknown, unknown, Unwrap<Context>, Meta>> {
+		if (opts?.defaultContext && typeof opts.defaultContext !== "function") {
+			throw new ActionError({
+				code: "ERROR",
+				message: "defaultContext must be a function that returns an object"
+			})
+		}
+
+		if (opts?.defaultMeta && typeof opts.defaultMeta !== "object") {
+			throw new ActionError({
+				code: "ERROR",
+				message: "defaultMeta must be an object"
+			})
+		}
+
+		if (opts?.errorHandler && typeof opts.errorHandler !== "function") {
+			throw new ActionError({
+				code: "ERROR",
+				message: "errorHandler must be a function"
+			})
+		}
+
 		return createActionBuilder<Unwrap<Context>, Meta>({
 			meta: opts?.defaultMeta,
 			errorHandler: opts?.errorHandler,

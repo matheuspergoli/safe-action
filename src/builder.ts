@@ -57,7 +57,7 @@ type MiddlewareFn<Context, NextContext, Input, Meta> = (opts: {
 	meta: Meta
 	ctx: Context
 	input: Input
-	next: <TContext>(opts: { ctx: TContext }) => MaybePromise<TContext>
+	next: <TContext extends object>(opts: { ctx: TContext }) => MaybePromise<TContext>
 }) => MaybePromise<NextContext>
 
 type ExecuteHandler<Input, Data, Context> = (opts: {
@@ -188,9 +188,10 @@ export function createActionBuilder<Context, Meta>(
 				ctx: prevCtx,
 				input,
 				next: async ({ ctx }) => {
+					const mergedCtx = { ...prevCtx, ...ctx }
 					return await executeMiddlewareStack({
 						idx: idx + 1,
-						prevCtx: ctx,
+						prevCtx: mergedCtx,
 						input
 					})
 				}
@@ -210,14 +211,9 @@ export function createActionBuilder<Context, Meta>(
 		try {
 			let defaultContext = {}
 
-			if (typeof _def.defaultContext !== "function") {
-				throw new ActionError({
-					code: "INTERNAL_ERROR",
-					message: "defaultContext must be a function"
-				})
+			if (_def.defaultContext) {
+				defaultContext = _def.defaultContext()
 			}
-
-			defaultContext = _def.defaultContext()
 
 			if (defaultContext instanceof Promise) {
 				defaultContext = await defaultContext
