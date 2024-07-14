@@ -40,12 +40,14 @@ const context = async () => {
 }
 
 const action = CreateAction.meta<Meta>().context<typeof context>().create({
-  defaultMeta: { span: "global" },
   defaultContext: context,
+  defaultMeta: { span: "global" },
 
   // ✅ Todos os erros que forem lançados dentro das actions vão cair aqui também
   errorHandler: (error) => {
-    console.log(error)
+
+    // ⚠️ O objeto error é serializado para poder retornar do server para o client
+    console.error(error)
   }
 })
 
@@ -59,6 +61,7 @@ export const authedAction = action.middleware(async ({ ctx, next }) => {
     })
   }
 
+  // ⚠️ É importante utilizar a função next() para chamar o próximo middleware na stack
   return next({
     ctx: {
       session: ctx.session // ✅ Passamos o contexto adiante inferindo a session
@@ -137,6 +140,40 @@ export const myAction = authedAction
   })
 ```
 
+### Adicionando middlewares em uma action
+> [!TIP]
+> Utilize os métodos `.middleware()` para adicionar middlewares em uma action
+
+> [!IMPORTANT]
+> Os middlewares precisam retornar a função next() para seguir com o próximo
+>
+> É possível encadear os middlewares para criar lógicas mais complexas
+>
+> [!IMPORTANT]
+> Os middlewares tem acesso ao `input`, `meta`, `rawInput` (input ainda não validado) assim como o `ctx` e a função `next` para seguir com a stack
+>
+> Middlewares podem ser tanto funções assíncronas quanto funções normais
+>
+> Ex.: `.middleware(async ({ input, rawInput, ctx, next }) => {...})`
+```ts
+// src/server/user/index.ts
+"use server"
+
+import { z } from "zod"
+import { authedAction } from "src/server/root.ts"
+
+// ⚠️ por segurança rawInput sempre terá type: unknown por conta de não ser validado
+export const myAction = authedAction.middleware(async (opts) => {
+  const { meta, input, rawInput, ctx, next } = opts
+
+  // ⚠️ retorne a função next() para prosseguir com a stack de middlewares
+  return next()
+}).middleware(({ next }) => {
+  // ✅ você pode adicionar novas propriedades ao objeto de contexto
+  return next({ ctx: { userId: 1 } }) // ✅ ctx: { session: Session, userId: number }
+})
+```
+
 ### Executando uma action em um server component
 ```ts
 // src/app/page.tsx
@@ -181,7 +218,6 @@ type Data = ActionInput<typeof myAction> // ✅ Data = { name: string; age: numb
 export const useCustomHook = () => {
   const [isPending, startTransition] = React.useTransition()
 
-  // Podemos criar um tipo para receber na função (randomName)
   const randomName = ({ name, age }: Data) => {
     startTransition(async () => {
       const result = await myAction({ name, age })

@@ -138,6 +138,7 @@ type MiddlewareFn<Context, NextContext, Input, Meta> = (opts: {
 	meta: Meta
 	ctx: Context
 	input: Input
+	rawInput: unknown
 	next: {
 		<TContext>(opts: { ctx?: TContext }): MaybePromise<TContext>
 		(): MaybePromise<Context>
@@ -257,11 +258,13 @@ export function createActionBuilder<Context, Meta>(
 	const executeMiddlewareStack = async <Ctx, Input>({
 		idx = 0,
 		input,
-		prevCtx
+		prevCtx,
+		rawInput
 	}: {
 		input: Input
 		idx?: number
 		prevCtx: Ctx
+		rawInput: unknown
 	}): Promise<Ctx> => {
 		const meta = _def.meta
 		const middlewareFn = _def.middlewares[idx]
@@ -271,12 +274,14 @@ export function createActionBuilder<Context, Meta>(
 				meta,
 				ctx: prevCtx,
 				input,
+				rawInput,
 				next: async (opts?: { ctx?: unknown }) => {
 					const mergedCtx = { ...prevCtx, ...(opts?.ctx ?? {}) }
 					return await executeMiddlewareStack({
 						idx: idx + 1,
 						prevCtx: mergedCtx,
-						input
+						input,
+						rawInput
 					})
 				}
 			})
@@ -291,7 +296,13 @@ export function createActionBuilder<Context, Meta>(
 		return prevCtx
 	}
 
-	const executeMiddleware = async <T>(input: unknown): Promise<Result<T>> => {
+	const executeMiddleware = async <T>({
+		input,
+		rawInput
+	}: {
+		input: unknown
+		rawInput: unknown
+	}): Promise<Result<T>> => {
 		try {
 			let defaultContext = {}
 
@@ -303,7 +314,11 @@ export function createActionBuilder<Context, Meta>(
 				defaultContext = await defaultContext
 			}
 
-			const ctx = await executeMiddlewareStack({ prevCtx: defaultContext, input })
+			const ctx = await executeMiddlewareStack({
+				prevCtx: defaultContext,
+				input,
+				rawInput
+			})
 
 			return { success: true, data: ctx as T }
 		} catch (error) {
@@ -343,7 +358,10 @@ export function createActionBuilder<Context, Meta>(
 						}
 					}
 
-					const ctx = await executeMiddleware(input)
+					const ctx = await executeMiddleware({
+						input: inputResult?.data,
+						rawInput: input
+					})
 					if (!isSuccess(ctx)) {
 						throw new ActionError(ctx.error)
 					}
@@ -363,9 +381,11 @@ export function createActionBuilder<Context, Meta>(
 					return { success: true, data: outputResult?.data ?? data }
 				} catch (error) {
 					const formattedError = getFormattedError(error)
+
 					if (builder._def.errorHandler) {
 						await builder._def.errorHandler(formattedError)
 					}
+
 					if (formattedError.code === "NEXT_ERROR") {
 						throw error
 					}
