@@ -17,6 +17,23 @@ export type Code =
 	| "MIDDLEWARE_ERROR"
 	| "NEXT_ERROR"
 
+const DEFAULT_ERROR_MESSAGES: Readonly<Record<Code, string>> = {
+	ERROR: "Error",
+	TIMEOUT: "Timeout",
+	CONFLICT: "Conflict",
+	NOT_FOUND: "Not found",
+	FORBIDDEN: "Forbidden",
+	NEXT_ERROR: "Next error",
+	BAD_REQUEST: "Bad request",
+	UNAUTHORIZED: "Unauthorized",
+	INTERNAL_ERROR: "Internal error",
+	MIDDLEWARE_ERROR: "Middleware error",
+	PAYLOAD_TOO_LARGE: "Payload too large",
+	TOO_MANY_REQUESTS: "Too many requests",
+	PARSE_INPUT_ERROR: "Error parsing input",
+	PARSE_OUTPUT_ERROR: "Error parsing output"
+}
+
 class UnknownCauseError extends Error {
 	[key: string]: unknown
 }
@@ -52,7 +69,7 @@ const getCauseFromUnknown = (cause: unknown): Error | undefined => {
 
 export type JSONError = {
 	code: Code
-	message: string
+	message?: string
 	cause?: unknown
 }
 
@@ -115,7 +132,7 @@ export class ActionError extends Error {
 
 	constructor(props: JSONError) {
 		const cause = getCauseFromUnknown(props.cause)
-		const message = props.message ?? cause?.message ?? props.code
+		const message = props.message ?? cause?.message ?? DEFAULT_ERROR_MESSAGES[props.code]
 
 		super(message, { cause })
 

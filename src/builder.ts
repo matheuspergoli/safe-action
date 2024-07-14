@@ -138,7 +138,10 @@ type MiddlewareFn<Context, NextContext, Input, Meta> = (opts: {
 	meta: Meta
 	ctx: Context
 	input: Input
-	next: <TContext extends object>(opts: { ctx: TContext }) => MaybePromise<TContext>
+	next: {
+		<TContext>(opts: { ctx?: TContext }): MaybePromise<TContext>
+		(): MaybePromise<Context>
+	}
 }) => MaybePromise<NextContext>
 
 type ExecuteHandler<Input, Data, Context> = (opts: {
@@ -268,8 +271,8 @@ export function createActionBuilder<Context, Meta>(
 				meta,
 				ctx: prevCtx,
 				input,
-				next: async ({ ctx }) => {
-					const mergedCtx = { ...prevCtx, ...ctx }
+				next: async (opts?: { ctx?: unknown }) => {
+					const mergedCtx = { ...prevCtx, ...(opts?.ctx ?? {}) }
 					return await executeMiddlewareStack({
 						idx: idx + 1,
 						prevCtx: mergedCtx,
@@ -279,10 +282,10 @@ export function createActionBuilder<Context, Meta>(
 			})
 
 			if (resultFn instanceof Promise) {
-				return await resultFn
+				return (await resultFn) ?? prevCtx
 			}
 
-			return resultFn
+			return resultFn ?? prevCtx
 		}
 
 		return prevCtx
@@ -336,13 +339,13 @@ export function createActionBuilder<Context, Meta>(
 					if (inputs.length > 0) {
 						inputResult = parseSchema(inputSchema, input, "PARSE_INPUT_ERROR")
 						if (!isSuccess(inputResult)) {
-							throw inputResult.error
+							throw new ActionError(inputResult.error)
 						}
 					}
 
 					const ctx = await executeMiddleware(input)
 					if (!isSuccess(ctx)) {
-						throw ctx.error
+						throw new ActionError(ctx.error)
 					}
 
 					const data = await handler({
@@ -353,7 +356,7 @@ export function createActionBuilder<Context, Meta>(
 					if (outputs.length > 0) {
 						outputResult = parseSchema(outputSchema, data, "PARSE_OUTPUT_ERROR")
 						if (!isSuccess(outputResult)) {
-							throw outputResult.error
+							throw new ActionError(outputResult.error)
 						}
 					}
 
