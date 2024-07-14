@@ -149,7 +149,6 @@ export const myAction = authedAction
 >
 > É possível encadear os middlewares para criar lógicas mais complexas
 >
-> [!IMPORTANT]
 > Os middlewares tem acesso ao `input`, `meta`, `rawInput` (input ainda não validado) assim como o `ctx` e a função `next` para seguir com a stack
 >
 > Middlewares podem ser tanto funções assíncronas quanto funções normais
