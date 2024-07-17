@@ -29,6 +29,17 @@ type CreateObjectFromShape<T extends z.ZodRawShape> = {
 type InferOutput<Data, Output> = Output extends AnyNonNullish ? Output : Data
 type InferSchema<T> = CreateObjectFromShape<RetrieveShape<T>>
 
+type MergeContext<Context, NextContext> = [Context, NextContext] extends [
+	AnyNonNullish,
+	AnyNonNullish
+]
+	? Prettify<Context & NextContext>
+	: [Context, NextContext] extends [AnyNonNullish, unknown]
+		? Context
+		: [Context, NextContext] extends [unknown, AnyNonNullish]
+			? NextContext
+			: unknown
+
 export type ActionInput<T> = T extends (input: infer Input) => infer _R ? Input : never
 
 export type ActionBuilder<Input, Output, Context, Meta> = {
@@ -108,7 +119,7 @@ export type ActionBuilder<Input, Output, Context, Meta> = {
 	 * */
 	middleware<NextContext>(
 		middlewareFn: MiddlewareFn<Context, NextContext, Input, Meta>
-	): ActionBuilder<Input, Output, Prettify<Context & NextContext>, Meta>
+	): ActionBuilder<Input, Output, MergeContext<Context, NextContext>, Meta>
 
 	/**
 	 *
@@ -276,10 +287,19 @@ export function createActionBuilder<Context, Meta>(
 				input,
 				rawInput,
 				next: async (opts?: { ctx?: unknown }) => {
-					const mergedCtx = { ...prevCtx, ...(opts?.ctx ?? {}) }
+					let mergedContext
+
+					if (prevCtx) {
+						mergedContext = { ...prevCtx }
+					}
+
+					if (opts?.ctx) {
+						mergedContext = { ...mergedContext, ...opts.ctx }
+					}
+
 					return await executeMiddlewareStack({
 						idx: idx + 1,
-						prevCtx: mergedCtx,
+						prevCtx: mergedContext,
 						input,
 						rawInput
 					})
@@ -304,7 +324,7 @@ export function createActionBuilder<Context, Meta>(
 		rawInput: unknown
 	}): Promise<Result<T>> => {
 		try {
-			let defaultContext = {}
+			let defaultContext
 
 			if (_def.defaultContext) {
 				defaultContext = _def.defaultContext()

@@ -29,7 +29,7 @@ interface Meta {
 
 // Você pode inicializar o contexto da action
 // Deve ser uma função com essas assinaturas: () => object | () => Promise<object>
-// ⚠️ Caso não inicialize o contexto inicial, ele irá iniciar um objeto: unknown - vazio
+// ⚠️ Caso não passe o contexto inicial, ele irá iniciar undefined: unknown
 const context = async () => {
   const session = getSession()
 
