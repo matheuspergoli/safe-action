@@ -8,16 +8,10 @@ import {
 	type ErrorHandler,
 	type Result
 } from "./errors"
-
-type AnyNonNullish = NonNullable<unknown>
-
-type Prettify<T> = {
-	[K in keyof T]: T[K]
-} & AnyNonNullish
+import { executeHooks, type CheckHookType, type Hooks, type HookType } from "./hooks"
+import type { AnyNonNullish, MaybePromise, Prettify, TypeError } from "./utils"
 
 type Schema = z.ZodObject<any>
-type MaybePromise<T> = Promise<T> | T
-type TypeError<Message extends string> = Message
 type RetrieveShape<T> = T extends z.ZodObject<infer Shape> ? Shape : never
 
 type CheckSchema<T> = T extends Schema ? T : TypeError<"Schema must be a zod object">
@@ -139,6 +133,32 @@ export type ActionBuilder<Input, Output, Context, Meta> = {
 
 	/**
 	 *
+	 * Add a hook function to the action
+	 *
+	 * Hooks are executed in the order they are added based on the lifecycle event
+	 *
+	 * You can access the context and meta information depending on the hook type
+	 *
+	 * If you chain this method, the hook function will be added to the stack
+	 *
+	 * Hooks have three lifecycle events: onSuccess, onError, onSettled
+	 *
+	 * @param type Hook type
+	 * @param fn Hook function
+	 *
+	 * @example
+	 * action.hook("onSuccess", ({ ctx, meta }) => {
+	 *     console.log("Action executed successfully")
+	 * })
+	 *
+	 * */
+	hook<Type extends HookType>(
+		type: Type,
+		fn: CheckHookType<Type, Context, Meta, Input>
+	): ActionBuilder<Input, Output, Context, Meta>
+
+	/**
+	 *
 	 * @internal Definitions of the action builder
 	 *
 	 * */
@@ -167,6 +187,7 @@ type ExecuteReturnFn<Input, Data> = Input extends AnyNonNullish
 
 type ActionBuilderDef<Meta, Context> = {
 	meta: Meta
+	hooks: AnyHooks
 	inputs: Schema[]
 	outputs: Schema[]
 	defaultContext: Context
@@ -174,6 +195,7 @@ type ActionBuilderDef<Meta, Context> = {
 	errorHandler?: ErrorHandler
 }
 
+type AnyHooks = Hooks<any, any, any>
 type AnyActionBuilderDef = ActionBuilderDef<any, any>
 type AnyMiddlewareFn = MiddlewareFn<any, any, any, any>
 type AnyActionBuilder = ActionBuilder<any, any, any, any>
@@ -182,7 +204,7 @@ function createNewActionBuilder(
 	def1: AnyActionBuilderDef,
 	def2: Partial<AnyActionBuilderDef>
 ): AnyActionBuilder {
-	const { inputs, outputs, middlewares, meta } = def2
+	const { inputs, outputs, middlewares, meta, hooks } = def2
 
 	const errorHandler = def2.errorHandler ?? def1.errorHandler
 	const defaultContext = def2.defaultContext ?? def1.defaultContext
@@ -193,7 +215,8 @@ function createNewActionBuilder(
 		inputs: [...def1.inputs, ...(inputs ?? [])],
 		outputs: [...def1.outputs, ...(outputs ?? [])],
 		middlewares: [...def1.middlewares, ...(middlewares ?? [])],
-		meta: def1.meta && meta ? { ...def1.meta, ...meta } : meta ?? def1.meta
+		meta: def1.meta && meta ? { ...def1.meta, ...meta } : (meta ?? def1.meta),
+		hooks: def1.hooks && hooks ? { ...def1.hooks, ...hooks } : (hooks ?? def1.hooks)
 	})
 }
 
@@ -202,6 +225,7 @@ export function createActionBuilder<Context, Meta>(
 ): ActionBuilder<unknown, unknown, Context, Meta> {
 	const _def: AnyActionBuilderDef = {
 		meta: {},
+		hooks: {},
 		inputs: [],
 		outputs: [],
 		middlewares: [],
@@ -219,9 +243,22 @@ export function createActionBuilder<Context, Meta>(
 	const parseSchema = <$Schema extends Schema, T>(
 		schema: $Schema,
 		data: T,
-		code: Code
+		schemaType: "input" | "output"
 	): Result<T> => {
 		try {
+			const schemaCodeErrors: Record<typeof schemaType, Code> = {
+				input: "PARSE_INPUT_ERROR",
+				output: "PARSE_OUTPUT_ERROR"
+			}
+
+			if (schemaType === "input" && _def.inputs.length === 0) {
+				return { success: true, data }
+			}
+
+			if (schemaType === "output" && _def.outputs.length === 0) {
+				return { success: true, data }
+			}
+
 			const parsedValues = schema.safeParse(data)
 
 			if (!parsedValues.success) {
@@ -233,11 +270,11 @@ export function createActionBuilder<Context, Meta>(
 
 				const message = errors
 					.map(({ path, message }) => {
-						if (code === "PARSE_INPUT_ERROR") {
+						if (schemaType === "input") {
 							return `Error parsing input at param: ${path} - ${message}`
 						}
 
-						if (code === "PARSE_OUTPUT_ERROR") {
+						if (schemaType === "output") {
 							return `Error parsing output at param: ${path} - ${message}`
 						}
 
@@ -250,7 +287,7 @@ export function createActionBuilder<Context, Meta>(
 				return {
 					success: false,
 					error: new ActionError({
-						code,
+						code: schemaCodeErrors[schemaType],
 						message: message.length === 0 ? defaultMessage : message
 					})
 				}
@@ -358,45 +395,55 @@ export function createActionBuilder<Context, Meta>(
 		output(output) {
 			return createNewActionBuilder(_def, { outputs: [output as Schema] })
 		},
+		hook(type, fn) {
+			const hooks = _def.hooks[type] ?? []
+			return createNewActionBuilder(_def, { hooks: { [type]: [...hooks, fn] } })
+		},
 		middleware(middlewareFn) {
 			return createNewActionBuilder(_def, { middlewares: [middlewareFn] })
 		},
 		execute(handler) {
-			const { inputs, outputs } = _def
+			const { inputs, outputs, hooks, meta } = _def
+
+			let inputResult
+			let outputResult
+			let ctx: Context
 
 			return async (input) => {
 				try {
-					let inputResult
-					let outputResult
 					const inputSchema = combineSchema(inputs)
 					const outputSchema = combineSchema(outputs)
 
-					if (inputs.length > 0) {
-						inputResult = parseSchema(inputSchema, input, "PARSE_INPUT_ERROR")
-						if (!isSuccess(inputResult)) {
-							throw new ActionError(inputResult.error)
-						}
+					inputResult = parseSchema(inputSchema, input, "input")
+					if (!isSuccess(inputResult)) {
+						throw new ActionError(inputResult.error)
 					}
 
-					const ctx = await executeMiddleware({
-						input: inputResult?.data,
-						rawInput: input
+					const ctxResult = await executeMiddleware({
+						rawInput: input,
+						input: inputResult?.data
 					})
-					if (!isSuccess(ctx)) {
-						throw new ActionError(ctx.error)
+					if (!isSuccess(ctxResult)) {
+						throw new ActionError(ctxResult.error)
 					}
+					ctx = ctxResult?.data as Context
 
 					const data = await handler({
-						input: inputResult?.data,
-						ctx: ctx.data
+						ctx,
+						input: inputResult?.data
 					})
 
-					if (outputs.length > 0) {
-						outputResult = parseSchema(outputSchema, data, "PARSE_OUTPUT_ERROR")
-						if (!isSuccess(outputResult)) {
-							throw new ActionError(outputResult.error)
-						}
+					outputResult = parseSchema(outputSchema, data, "output")
+					if (!isSuccess(outputResult)) {
+						throw new ActionError(outputResult.error)
 					}
+
+					await executeHooks(hooks["onSuccess"], {
+						ctx,
+						meta,
+						rawInput: input,
+						input: inputResult?.data
+					})
 
 					return { success: true, data: outputResult?.data ?? data }
 				} catch (error) {
@@ -406,11 +453,24 @@ export function createActionBuilder<Context, Meta>(
 						await builder._def.errorHandler(formattedError)
 					}
 
+					await executeHooks(hooks["onError"], {
+						ctx,
+						meta,
+						rawInput: input,
+						error: formattedError
+					})
+
 					if (formattedError.code === "NEXT_ERROR") {
 						throw error
 					}
 
 					return { success: false, error: formattedError }
+				} finally {
+					await executeHooks(hooks["onSettled"], {
+						ctx,
+						meta,
+						rawInput: input
+					})
 				}
 			}
 		}
