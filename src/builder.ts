@@ -456,13 +456,6 @@ export function createActionBuilder<Context, Meta>(
 						await builder._def.errorHandler(formattedError)
 					}
 
-					await executeHooks(hooks["onError"], {
-						ctx,
-						meta,
-						rawInput,
-						error: formattedError
-					})
-
 					if (formattedError.code === "NEXT_ERROR") {
 						await executeHooks(hooks["onSuccess"], {
 							ctx,
@@ -473,6 +466,13 @@ export function createActionBuilder<Context, Meta>(
 
 						throw error
 					}
+
+					await executeHooks(hooks["onError"], {
+						ctx,
+						meta,
+						rawInput,
+						error: formattedError
+					})
 
 					return { success: false, error: formattedError }
 				} finally {
