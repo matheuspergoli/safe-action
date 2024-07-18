@@ -6,7 +6,8 @@ import {
 	isSuccess,
 	type Code,
 	type ErrorHandler,
-	type Result
+	type Result,
+	type Success
 } from "./errors"
 import { executeHooks, type CheckHookType, type Hooks, type HookType } from "./hooks"
 import type { AnyNonNullish, MaybePromise, Prettify, TypeError } from "./utils"
@@ -405,47 +406,49 @@ export function createActionBuilder<Context, Meta>(
 		execute(handler) {
 			const { inputs, outputs, hooks, meta } = _def
 
-			let inputResult
-			let outputResult
 			let ctx: Context
+			let parsedInput: Result<any>
+			let parsedOutput: Result<any>
 
-			return async (input) => {
+			return async (rawInput) => {
 				try {
 					const inputSchema = combineSchema(inputs)
 					const outputSchema = combineSchema(outputs)
 
-					inputResult = parseSchema(inputSchema, input, "input")
-					if (!isSuccess(inputResult)) {
-						throw new ActionError(inputResult.error)
+					const inputParseResult = parseSchema(inputSchema, rawInput, "input")
+					if (!isSuccess(inputParseResult)) {
+						throw new ActionError(inputParseResult.error)
 					}
+					parsedInput = inputParseResult?.data as Success<any>["data"]
 
 					const ctxResult = await executeMiddleware({
-						rawInput: input,
-						input: inputResult?.data
+						rawInput,
+						input: parsedInput
 					})
 					if (!isSuccess(ctxResult)) {
 						throw new ActionError(ctxResult.error)
 					}
 					ctx = ctxResult?.data as Context
 
-					const data = await handler({
+					const rawData = await handler({
 						ctx,
-						input: inputResult?.data
+						input: parsedInput
 					})
 
-					outputResult = parseSchema(outputSchema, data, "output")
-					if (!isSuccess(outputResult)) {
-						throw new ActionError(outputResult.error)
+					const outputParseResult = parseSchema(outputSchema, rawData, "output")
+					if (!isSuccess(outputParseResult)) {
+						throw new ActionError(outputParseResult.error)
 					}
+					parsedOutput = outputParseResult?.data as Success<any>["data"]
 
 					await executeHooks(hooks["onSuccess"], {
 						ctx,
 						meta,
-						rawInput: input,
-						input: inputResult?.data
+						rawInput,
+						input: parsedInput
 					})
 
-					return { success: true, data: outputResult?.data ?? data }
+					return { success: true, data: parsedOutput ?? rawData }
 				} catch (error) {
 					const formattedError = getFormattedError(error)
 
@@ -456,11 +459,18 @@ export function createActionBuilder<Context, Meta>(
 					await executeHooks(hooks["onError"], {
 						ctx,
 						meta,
-						rawInput: input,
+						rawInput,
 						error: formattedError
 					})
 
 					if (formattedError.code === "NEXT_ERROR") {
+						await executeHooks(hooks["onSuccess"], {
+							ctx,
+							meta,
+							rawInput,
+							input: parsedInput
+						})
+
 						throw error
 					}
 
@@ -469,7 +479,7 @@ export function createActionBuilder<Context, Meta>(
 					await executeHooks(hooks["onSettled"], {
 						ctx,
 						meta,
-						rawInput: input
+						rawInput
 					})
 				}
 			}

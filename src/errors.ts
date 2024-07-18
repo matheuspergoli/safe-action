@@ -73,12 +73,12 @@ export type JSONError = {
 	cause?: unknown
 }
 
-type Success<T> = {
+export type Success<T> = {
 	success: true
 	data: T
 }
 
-type Failure = {
+export type Failure = {
 	success: false
 	error: JSONError
 }
