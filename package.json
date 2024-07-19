@@ -1,6 +1,6 @@
 {
 	"name": "safe-action",
-	"version": "0.4.7",
+	"version": "0.4.8",
 	"description": "Simple type-safe actions",
 	"author": "Matheus Pergoli <https://matheuspergoli-portfolio.vercel.app>",
 	"main": "dist/index.js",
@@ -8,6 +8,7 @@
 	"typings": "dist/index.d.ts",
 	"scripts": {
 		"build": "tsup",
+		"deploy": "tsup && changeset publish",
 		"format": "prettier --write \"src/**/*.{ts,tsx}\"",
 		"clean": "find . -name node_modules -o -name dist -type d -prune | xargs rm -rf"
 	},
