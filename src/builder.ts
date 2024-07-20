@@ -177,10 +177,7 @@ type MiddlewareFn<Context, NextContext, Input, Meta> = (opts: {
 	}
 }) => MaybePromise<NextContext>
 
-type ExecuteHandler<Input, Data, Context> = (opts: {
-	ctx: Context
-	input: Input
-}) => Promise<Data>
+type ExecuteHandler<Input, Data, Context> = (opts: { ctx: Context; input: Input }) => Promise<Data>
 
 type ExecuteReturnFn<Input, Data> = Input extends AnyNonNullish
 	? (input: Input) => Promise<Result<Data>>

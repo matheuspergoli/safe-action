@@ -23,11 +23,5 @@ module.exports = {
 			}
 		]
 	},
-	ignorePatterns: [
-		"**/.*.js",
-		"**/.*.ts",
-		"**/*.config.ts",
-		"**/*.config.js",
-		"node_modules"
-	]
+	ignorePatterns: ["**/.*.js", "**/.*.ts", "**/*.config.ts", "**/*.config.js", "node_modules"]
 }

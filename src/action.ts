@@ -4,8 +4,10 @@ import type { AnyNonNullish, MaybePromise, UnsetMarker } from "./utils"
 
 type ContextFn = () => MaybePromise<object>
 
-type MetaError = "Did you forget to pass a generic type to .meta<type>()?"
-type ContextError = "Did you forget to pass a generic type to .context<type>()?"
+type MetaTypeError = "object"
+type ContextFnTypeError = "() => Promise<object> | object"
+type MetaError = `You need to pass a generic of type ${MetaTypeError} to .meta<type>()`
+type ContextError = `You need to pass a generic of type ${ContextFnTypeError} to .context<type>()`
 
 type CreateOptions<C, M> = [C, M] extends [UnsetMarker, UnsetMarker]
 	? {
@@ -55,11 +57,7 @@ type CreateOptions<C, M> = [C, M] extends [UnsetMarker, UnsetMarker]
 										errorHandler?: ErrorHandler
 									}
 
-type Unwrap<T> = T extends () => Promise<infer U>
-	? Awaited<U>
-	: T extends () => infer U
-		? U
-		: T
+type Unwrap<T> = T extends () => Promise<infer U> ? Awaited<U> : T extends () => infer U ? U : T
 
 type CheckOpts<C, M> = C extends AnyNonNullish
 	? [opts: CreateOptions<C, M>]
@@ -67,13 +65,16 @@ type CheckOpts<C, M> = C extends AnyNonNullish
 		? [opts: CreateOptions<C, M>]
 		: [opts?: CreateOptions<C, M>]
 
+type ValidMeta<T> = T extends object ? T : UnsetMarker
+type ValidContext<T> = T extends ContextFn ? T : UnsetMarker
+
 class CreateActionBuilder<Context, Meta> {
 	meta<NewMeta = UnsetMarker>() {
-		return new CreateActionBuilder<Context, NewMeta>()
+		return new CreateActionBuilder<Context, ValidMeta<NewMeta>>()
 	}
 
 	context<NewContext = UnsetMarker>() {
-		return new CreateActionBuilder<NewContext, Meta>()
+		return new CreateActionBuilder<ValidContext<NewContext>, Meta>()
 	}
 
 	create<C extends Context, M extends Meta>(
