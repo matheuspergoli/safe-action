@@ -7,3 +7,6 @@ export type Prettify<T> = {
 export type MaybePromise<T> = Promise<T> | T
 
 export type TypeError<Message extends string> = Message
+
+export const unsetMarker = Symbol("unsetMarker")
+export type UnsetMarker = typeof unsetMarker

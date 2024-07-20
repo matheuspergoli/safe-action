@@ -46,8 +46,6 @@ export const executeHook = async <T extends (opts: any) => MaybePromise<void>>(
 	if (resultHook instanceof Promise) {
 		await resultHook
 	}
-
-	return resultHook
 }
 
 export const executeHooks = async <T extends (opts: any) => MaybePromise<void>>(

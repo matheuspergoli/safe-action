@@ -1,27 +1,59 @@
 import { createActionBuilder, type ActionBuilder } from "./builder"
 import { ActionError, type ErrorHandler } from "./errors"
+import type { AnyNonNullish, MaybePromise, UnsetMarker } from "./utils"
 
-type ContextFn = () => Promise<object> | object
+type ContextFn = () => MaybePromise<object>
 
-type CreateOptions<Context, Meta> = [Context, Meta] extends [ContextFn, object]
+type MetaError = "Did you forget to pass a generic type to .meta<type>()?"
+type ContextError = "Did you forget to pass a generic type to .context<type>()?"
+
+type CreateOptions<C, M> = [C, M] extends [UnsetMarker, UnsetMarker]
 	? {
-			defaultMeta: Meta
-			defaultContext: Context
+			defaultMeta: MetaError
+			defaultContext: ContextError
 			errorHandler?: ErrorHandler
 		}
-	: [Context, Meta] extends [ContextFn, unknown]
+	: [C, M] extends [ContextFn, UnsetMarker]
 		? {
-				defaultContext: Context
+				defaultMeta: MetaError
+				defaultContext: C
 				errorHandler?: ErrorHandler
 			}
-		: [Context, Meta] extends [unknown, object]
+		: [C, M] extends [UnsetMarker, object]
 			? {
-					defaultMeta: Meta
+					defaultMeta: M
+					defaultContext: ContextError
 					errorHandler?: ErrorHandler
 				}
-			: {
-					errorHandler?: ErrorHandler
-				}
+			: [C, M] extends [ContextFn, object]
+				? {
+						defaultMeta: M
+						defaultContext: C
+						errorHandler?: ErrorHandler
+					}
+				: [C, M] extends [UnsetMarker, unknown]
+					? {
+							defaultContext: ContextError
+							errorHandler?: ErrorHandler
+						}
+					: [C, M] extends [unknown, UnsetMarker]
+						? {
+								defaultMeta: MetaError
+								errorHandler?: ErrorHandler
+							}
+						: [C, M] extends [ContextFn, unknown]
+							? {
+									defaultContext: C
+									errorHandler?: ErrorHandler
+								}
+							: [C, M] extends [unknown, object]
+								? {
+										defaultMeta: M
+										errorHandler?: ErrorHandler
+									}
+								: {
+										errorHandler?: ErrorHandler
+									}
 
 type Unwrap<T> = T extends () => Promise<infer U>
 	? Awaited<U>
@@ -29,43 +61,53 @@ type Unwrap<T> = T extends () => Promise<infer U>
 		? U
 		: T
 
+type CheckOpts<C, M> = C extends AnyNonNullish
+	? [opts: CreateOptions<C, M>]
+	: M extends AnyNonNullish
+		? [opts: CreateOptions<C, M>]
+		: [opts?: CreateOptions<C, M>]
+
 class CreateActionBuilder<Context, Meta> {
-	meta<NewMeta extends object>() {
+	meta<NewMeta = UnsetMarker>() {
 		return new CreateActionBuilder<Context, NewMeta>()
 	}
 
-	context<NewContext extends ContextFn>() {
+	context<NewContext = UnsetMarker>() {
 		return new CreateActionBuilder<NewContext, Meta>()
 	}
 
-	create(
-		opts?: CreateOptions<Context, Meta>
+	create<C extends Context, M extends Meta>(
+		...opts: CheckOpts<C, M>
 	): ActionBuilder<unknown, unknown, Unwrap<Context>, Meta> {
-		if (opts && "defaultContext" in opts && typeof opts.defaultContext !== "function") {
+		const def = opts[0]
+
+		if (def && "defaultContext" in def && typeof def.defaultContext !== "function") {
 			throw new ActionError({
 				code: "ERROR",
 				message: "defaultContext must be a function"
 			})
 		}
 
-		if (opts && "defaultMeta" in opts && typeof opts.defaultMeta !== "object") {
+		if (def && "defaultMeta" in def && typeof def.defaultMeta !== "object") {
 			throw new ActionError({
 				code: "ERROR",
 				message: "defaultMeta must be an object"
 			})
 		}
 
-		if (opts && "errorHandler" in opts && typeof opts.errorHandler !== "function") {
+		if (def && "errorHandler" in def && typeof def.errorHandler !== "function") {
 			throw new ActionError({
 				code: "ERROR",
 				message: "errorHandler must be a function"
 			})
 		}
 
+		const errorHandler = def && "errorHandler" in def ? def.errorHandler : undefined
+
 		return createActionBuilder<Unwrap<Context>, Meta>({
-			errorHandler: opts?.errorHandler,
-			meta: opts && "defaultMeta" in opts ? opts.defaultMeta : undefined,
-			defaultContext: opts && "defaultContext" in opts ? opts.defaultContext : undefined
+			errorHandler: errorHandler as ErrorHandler,
+			meta: def && "defaultMeta" in def ? def.defaultMeta : undefined,
+			defaultContext: def && "defaultContext" in def ? def.defaultContext : undefined
 		})
 	}
 }

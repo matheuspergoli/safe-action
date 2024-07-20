@@ -1,6 +1,8 @@
 import { isNotFoundError } from "next/dist/client/components/not-found"
 import { isRedirectError } from "next/dist/client/components/redirect"
 
+import type { MaybePromise } from "./utils"
+
 export type Code =
 	| "UNAUTHORIZED"
 	| "NOT_FOUND"
@@ -85,7 +87,7 @@ export type Failure = {
 
 export type Result<T> = Success<T> | Failure
 
-export type ErrorHandler = (error: JSONError) => void | Promise<void>
+export type ErrorHandler = (error: JSONError) => MaybePromise<void>
 
 export const isSuccess = <T>(result: Result<T>): result is Success<T> => {
 	return result.success
