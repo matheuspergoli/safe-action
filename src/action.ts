@@ -6,8 +6,8 @@ type ContextFn = () => MaybePromise<object>
 
 type MetaTypeError = "object"
 type ContextFnTypeError = "() => Promise<object> | object"
-type MetaError = `You need to pass a generic of type ${MetaTypeError} to .meta<type>()`
-type ContextError = `You need to pass a generic of type ${ContextFnTypeError} to .context<type>()`
+type MetaError = `Generic of type ${MetaTypeError} is required for .meta<type>()`
+type ContextError = `Generic of type ${ContextFnTypeError} is required for .context<type>()`
 
 type CreateOptions<C, M> = [C, M] extends [UnsetMarker, UnsetMarker]
 	? {
