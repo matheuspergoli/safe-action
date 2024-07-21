@@ -103,6 +103,7 @@ export const myAction = authedAction
     }
   })
 ```
+
 ### Utilizando um Parser de output para validação do retorno da action
 > [!TIP]
 > Utilize os métodos `.output()` para validar o retorno da server action
@@ -173,6 +174,41 @@ export const myAction = authedAction.middleware(async (opts) => {
 })
 ```
 
+### Adicionando hooks em uma action
+> [!TIP]
+> Utilize os métodos `.hook()` para adicionar hooks em uma action
+
+> [!IMPORTANT]
+> Os hooks rodam em três ciclos de vida diferentes e tem acesso a valores que dependem de seu ciclo de vida
+> - onSuccess - `ctx` | `meta` | `rawInput` | `input`
+> - onError - `ctx` | `meta` `rawInput` | `error`
+> - onSettled `ctx` | `meta` | `rawInput`
+>
+> É possível encadear hooks do mesmo ciclo de vida para criar lógicas mais complexas
+>
+>
+> Hooks podem ser tanto funções assíncronas quanto funções normais
+>
+> Ex.: `.hook('onSuccess', async ({ ctx, meta, input, rawInput }) => {...})`
+```ts
+// src/server/user/index.ts
+"use server"
+
+import { z } from "zod"
+import { authedAction } from "src/server/root.ts"
+
+export const myAction = authedAction.hook("onSuccess", async (opts) => {
+  const { ctx, meta, input, rawInput } = opts
+
+  // ✅ E.g. Você pode utilizar hooks para monitorar e usar logs
+  await logger(`User with has logged in with data: ${input}`)
+}).hook("onSuccess", ({ rawInput }) => {
+  console.log(`Input without validation: ${rawInput}`)
+}).hook("onError", async ({ rawInput, error }) => {
+  await logger(`User failed to login ${error.message}`)
+})
+```
+
 ### Executando uma action em um server component
 ```ts
 // src/app/page.tsx
@@ -197,6 +233,7 @@ export default async function Page() {
   )
 }
 ```
+
 ### Executando uma action em um client component
 > [!TIP]
 > Para utilizar em um client component vamos criar um custom hook
