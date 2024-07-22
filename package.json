@@ -1,6 +1,6 @@
 {
 	"name": "safe-action",
-	"version": "0.4.11",
+	"version": "0.5.1",
 	"description": "Simple type-safe actions",
 	"author": "Matheus Pergoli <https://matheuspergoli-portfolio.vercel.app>",
 	"main": "dist/index.js",
