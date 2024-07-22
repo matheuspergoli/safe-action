@@ -21,14 +21,17 @@ import { prisma } from "your-prisma-instance"
 import { getSession } from "your-session-lib"
 import { CreateAction, ActionError } from "safe-action"
 
-// Você pode adicionar metadados que serão compartilhados entre os middlewares
+// Você pode adicionar metadados que serão compartilhados entre middlewares e hooks
 // Meta deve ser um objeto
-interface Meta {
-  span: string
+// Você poderá modificar sempre que quiser os valores mas as tipagens sempre permanecerão as mesmas do momento em que foi inicializado
+// ⚠️ Caso não inicialize um metadado ele irá iniciar undefined: unknown e permanecerá unknown em toda a action
+const meta = {
+  event: 'event-test',
+  channel: 'channel-test'
 }
 
 // Você pode inicializar o contexto da action
-// Deve ser uma função com essas assinaturas: () => object | () => Promise<object>
+// Context deve ser uma função com essas assinaturas: () => object | () => Promise<object>
 // ⚠️ Caso não passe o contexto inicial, ele irá iniciar undefined: unknown
 const context = async () => {
   const session = getSession()
@@ -39,10 +42,8 @@ const context = async () => {
   }
 }
 
-const action = CreateAction.meta<Meta>().context<typeof context>().create({
-  defaultContext: context,
-  defaultMeta: { span: "global" },
-
+// ✅ Os tipos de meta e context serão inferidos com base na utilização
+const action = CreateAction.meta(meta).context(context).create({
   // ✅ Todos os erros que forem lançados dentro das actions vão cair aqui também
   errorHandler: (error) => {
 
