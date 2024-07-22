@@ -8,31 +8,31 @@
 
 <p align="center">
   <strong>
-    Validação estática e runtime para criação de server actions no
+    Static type and runtime validation for server actions in
     <a href="https://nextjs.org" target="\_parent">NextJS App Router</a>
-    com Zod
+    with Zod
   </strong>
 </p>
 
-### Inicialize suas actions
+### Initialize your actions
 ```ts
 // src/server/root.ts
 import { prisma } from "your-prisma-instance"
 import { getSession } from "your-session-lib"
 import { CreateAction, ActionError } from "safe-action"
 
-// Você pode adicionar metadados que serão compartilhados entre middlewares e hooks
-// Meta deve ser um objeto
-// Você poderá modificar sempre que quiser os valores mas as tipagens sempre permanecerão as mesmas do momento em que foi inicializado
-// ⚠️ Caso não inicialize um metadado ele irá iniciar undefined: unknown e permanecerá unknown em toda a action
+// You can add metadata that will be shared between middlewares and hooks
+// Metadata must be an object
+// You can always modify the values, but the types will always remain the same from when it was initialized
+// ⚠️ If you do not initialize metadata, it will start as undefined: unknown and will remain unknown throughout the action
 const meta = {
   event: 'event-test',
   channel: 'channel-test'
 }
 
-// Você pode inicializar o contexto da action
-// Context deve ser uma função com essas assinaturas: () => object | () => Promise<object>
-// ⚠️ Caso não passe o contexto inicial, ele irá iniciar undefined: unknown
+// You can initialize the action context
+// Context must be a function with these signatures: () => object | () => Promise<object>
+// ⚠️ If you do not provide the initial context, it will start as undefined: unknown
 const context = async () => {
   const session = getSession()
 
@@ -42,12 +42,12 @@ const context = async () => {
   }
 }
 
-// ✅ Os tipos de meta e context serão inferidos com base na utilização
+// ✅ Meta and context types will be inferred based on usage
 const action = CreateAction.meta(meta).context(context).create({
-  // ✅ Todos os erros que forem lançados dentro das actions vão cair aqui também
+  // ✅ All errors thrown within actions will be handled here as well
   errorHandler: (error) => {
 
-    // ⚠️ O objeto error é serializado para poder retornar do server para o client
+    // ⚠️ The error object is serialized to return from the server to the client
     console.error(error)
   }
 })
@@ -55,30 +55,30 @@ const action = CreateAction.meta(meta).context(context).create({
 export const publicAction = action
 
 export const authedAction = action.middleware(async ({ ctx, next }) => {
-  if (!ctx.session) { // ⚠️ Vamos garantir que nessa action tenha uma session
+  if (!ctx.session) { // ⚠️ Ensure this action has a session
     throw new ActionError({
       code: "UNAUTHORIZED",
       message: "You must be logged in to perform this action"
     })
   }
 
-  // ⚠️ É importante utilizar a função next() para chamar o próximo middleware na stack
+  // ⚠️ It is important to use the next() function to call the next middleware in the stack
   return next({
     ctx: {
-      session: ctx.session // ✅ Passamos o contexto adiante inferindo a session
+      session: ctx.session // ✅ Pass the context forward, inferring the session
     }
   })
 })
 ```
 
-### Crie uma server action utilizando um Parser de input para validação dos parâmetros
+### Create a server action using an Input Parser for parameter validation
 > [!TIP]
-> Utilize os métodos `.input()` para validar os parâmetros da server action
+> Use the `.input()` methods to validade the server actions parameters
 
 > [!IMPORTANT]
-> Os métodos de parser só aceitam `ZodObject` então use `z.object()`
+> Parser methods only accepts `ZodObject` so use `z.object()`
 >
-> É possível encadear os métodos para criar objetos mais complexos
+> You can chain methods to create more complex objects
 >
 > Ex.: `.input(z.object({ name: z.string() })).input(z.object({ age: z.number() }))`
 ```ts
@@ -92,27 +92,27 @@ export const myAction = authedAction
   .input(z.object({ name: z.string() }))
   .input(z.object({ age: z.number() }))
 
-  // input terá seu tipo inferido com base nos métodos de parser
+  // input will have its type inferred based on the parser methods
   // ✅ input: { name: string; age: number }
   // ✅ ctx: { session: Session }
   .execute(async ({ input, ctx }) => {
-  // faça alguma coisa com os dados
+  // do something with the data
 
-    // ✅ retorno inferido automaticamente
+    // ✅ return inferred automatically
     return {
       message: `${input.name} ${input.age}`,
     }
   })
 ```
 
-### Utilizando um Parser de output para validação do retorno da action
+### Using an Output Parser for return validation
 > [!TIP]
-> Utilize os métodos `.output()` para validar o retorno da server action
+> Use the `.output()` methods to validate the server action return
 
 > [!IMPORTANT]
-> Os métodos de parser só aceitam `ZodObject` então use `z.object()`
+> Parser methods only accept `ZodObject` so use `z.object()`
 >
-> É possível encadear os métodos para criar objetos mais complexos em combinação dos parsers de input
+> You can chain methods to create more complex objects in combination with input parsers
 >
 > Ex.: `.output(z.object({ name: z.string() })).output(z.object({ age: z.number() }))`
 ```ts
@@ -128,13 +128,13 @@ export const myAction = authedAction
   .output(z.object({ name: z.string() }))
   .output(z.object({ age: z.number() }))
 
-  // input terá seu tipo inferido com base nos métodos de parser
+  // input will have its type inferred based on the parser methods
   // ✅ input: { name: string; age: number }
   // ✅ ctx: { session: Session }
   .execute(async ({ input, ctx }) => {
-  // faça alguma coisa com os dados
+  // do something with the data
 
-  // ✅ retorno inferido com base nos parsers de output
+  // ✅ return inferred based on output parsers
   return {
       age: input.age,
       name: input.name
@@ -142,18 +142,18 @@ export const myAction = authedAction
   })
 ```
 
-### Adicionando middlewares em uma action
+### Adding middlewares to an action
 > [!TIP]
-> Utilize os métodos `.middleware()` para adicionar middlewares em uma action
+> Use the `.middleware()` methods to add middlewares to an action
 
 > [!IMPORTANT]
-> Os middlewares precisam retornar a função next() para seguir com o próximo
+> Middlewares need to return the next() function to proceed to the next one
 >
-> É possível encadear os middlewares para criar lógicas mais complexas
+> You can chain middlewares to create more complex logic
 >
-> Os middlewares tem acesso ao `input`, `meta`, `rawInput` (input ainda não validado) assim como o `ctx` e a função `next` para seguir com a stack
+> Middlewares have access to `input`, `meta`, `rawInput` (unvalidated input), as well as `ctx` and the `next` function to proceed with the stack
 >
-> Middlewares podem ser tanto funções assíncronas quanto funções normais
+> Middlewares can be either asynchronous or regular functions
 >
 > Ex.: `.middleware(async ({ input, rawInput, ctx, next }) => {...})`
 ```ts
@@ -163,32 +163,31 @@ export const myAction = authedAction
 import { z } from "zod"
 import { authedAction } from "src/server/root.ts"
 
-// ⚠️ por segurança rawInput sempre terá type: unknown por conta de não ser validado
+// ⚠️ for security, rawInput will always have type: unknown because it is not validated
 export const myAction = authedAction.middleware(async (opts) => {
   const { meta, input, rawInput, ctx, next } = opts
 
-  // ⚠️ retorne a função next() para prosseguir com a stack de middlewares
+  // ⚠️ return the next() function to proceed with the middleware stack
   return next()
 }).middleware(({ next }) => {
-  // ✅ você pode adicionar novas propriedades ao objeto de contexto
+  // ✅ you can add new properties to the context object
   return next({ ctx: { userId: 1 } }) // ✅ ctx: { session: Session, userId: number }
 })
 ```
 
-### Adicionando hooks em uma action
+### Adding hooks to an action
 > [!TIP]
-> Utilize os métodos `.hook()` para adicionar hooks em uma action
+> Use the `.hook()` methods to add hooks to an action
 
 > [!IMPORTANT]
-> Os hooks rodam em três ciclos de vida diferentes e tem acesso a valores que dependem de seu ciclo de vida
+> Hooks run in three different life cycles and have access to values based on their life cycle
 > - onSuccess - `ctx` | `meta` | `rawInput` | `input`
 > - onError - `ctx` | `meta` `rawInput` | `error`
 > - onSettled `ctx` | `meta` | `rawInput`
 >
-> É possível encadear hooks do mesmo ciclo de vida para criar lógicas mais complexas
+> You can chain hooks of the same life cycle to create more complex logic
 >
->
-> Hooks podem ser tanto funções assíncronas quanto funções normais
+> Hooks can be either asynchronous or regular functions
 >
 > Ex.: `.hook('onSuccess', async ({ ctx, meta, input, rawInput }) => {...})`
 ```ts
@@ -201,7 +200,7 @@ import { authedAction } from "src/server/root.ts"
 export const myAction = authedAction.hook("onSuccess", async (opts) => {
   const { ctx, meta, input, rawInput } = opts
 
-  // ✅ E.g. Você pode utilizar hooks para monitorar e usar logs
+  // ✅ E.g. You can use hooks to monitor and use logs
   await logger(`User with has logged in with data: ${input}`)
 }).hook("onSuccess", ({ rawInput }) => {
   console.log(`Input without validation: ${rawInput}`)
@@ -210,18 +209,18 @@ export const myAction = authedAction.hook("onSuccess", async (opts) => {
 })
 ```
 
-### Executando uma action em um server component
+### Executing an action in a server component
 ```ts
 // src/app/page.tsx
 import { myAction } from "src/server/user"
 
 export default async function Page() {
-  // ✅ Parâmetros tipados de acordo com os parsers de input
+  // ✅ Parameters typed according to input parsers
   const result = await myAction({ name: "John doe", age: 30 })
 
   return (
     <div>
-      {/* ⚠️ Sempre se deve verificar para ter acesso aos dados */}
+      {/* ⚠️ Always check to access the data */}
       {result.success ? (
         <>
           <h1>{result.data.name}</h1>
@@ -235,21 +234,21 @@ export default async function Page() {
 }
 ```
 
-### Executando uma action em um client component
+### Executing an action in a client component
 > [!TIP]
-> Para utilizar em um client component vamos criar um custom hook
+> To use it in a client component, we will create a custom hook
 ```ts
 // src/hooks/index.ts
 import React from "react"
 import { myAction } from "src/server/user"
 
-// type helper para nos ajudar a pegar os parâmetros de uma action
+// type helper to help us get the parameters of an action
 import { type ActionInput } from "safe-action"
 
-// Vamos utilizar como exemplo o componente toast do shadcn/ui
+// Let's use the shadcn/ui toast component as an example
 import { toast } from "sonner"
 
-// Vamos criar um type para os valores que vamos precisar receber na action
+// Let's create a type for the values we will need to receive in the action
 type Data = ActionInput<typeof myAction> // ✅ Data = { name: string; age: number }
 
 export const useCustomHook = () => {
@@ -260,17 +259,17 @@ export const useCustomHook = () => {
       const result = await myAction({ name, age })
 
       if (!result.success) {
-        // ✅ Você pode mostrar algum alerta ou toast para o usuário
-        toast("Algo de errado aconteceu", {
+        // ✅ You can show an alert or toast to the user
+        toast("Something went wrong", {
           description: result.error.message
         })
 
-        // ⚠️ return para parar o fluxo assim o resultado de sucesso será inferido
+        // ⚠️ return to stop the flow so the success result will be inferred
         return
       }
 
-      toast("Action executada com sucesso", {
-        description: `Dados recebidos ${result.data.name} ${result.data.age}`
+      toast("Action executed successfully", {
+        description: `Data received ${result.data.name} ${result.data.age}`
       })
     })
   }
