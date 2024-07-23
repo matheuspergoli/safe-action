@@ -85,16 +85,16 @@ export type Failure = {
 	error: JSONError
 }
 
-export type Result<T> = Success<T> | Failure
+export type Result<T> = [T, null] | [null, JSONError]
 
 export type ErrorHandler = (error: JSONError) => MaybePromise<void>
 
-export const isSuccess = <T>(result: Result<T>): result is Success<T> => {
-	return result.success
+export const isSuccess = <T>(result: Result<T>): result is [T, null] => {
+	return result[1] === null
 }
 
-export const isFailure = <T>(result: Result<T>): result is Failure => {
-	return !result.success
+export const isFailure = <T>(result: Result<T>): result is [null, JSONError] => {
+	return result[1] !== null
 }
 
 export const getFormattedError = (error: unknown): JSONError => {

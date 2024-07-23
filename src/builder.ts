@@ -3,11 +3,10 @@ import { z } from "zod"
 import {
 	ActionError,
 	getFormattedError,
-	isSuccess,
+	isFailure,
 	type Code,
 	type ErrorHandler,
-	type Result,
-	type Success
+	type Result
 } from "./errors"
 import { executeHooks, type CheckHookType, type Hooks, type HookType } from "./hooks"
 import type { AnyNonNullish, MaybePromise, Prettify, TypeError } from "./utils"
@@ -250,11 +249,11 @@ export function createActionBuilder<Context, Meta>(
 			}
 
 			if (schemaType === "input" && _def.inputs.length === 0) {
-				return { success: true, data }
+				return [data, null]
 			}
 
 			if (schemaType === "output" && _def.outputs.length === 0) {
-				return { success: true, data }
+				return [data, null]
 			}
 
 			const parsedValues = schema.safeParse(data)
@@ -282,22 +281,19 @@ export function createActionBuilder<Context, Meta>(
 
 				const defaultMessage = "Error parsing schema"
 
-				return {
-					success: false,
-					error: new ActionError({
+				return [
+					null,
+					new ActionError({
 						code: schemaCodeErrors[schemaType],
 						message: message.length === 0 ? defaultMessage : message
 					})
-				}
+				]
 			}
 
-			return { success: true, data: parsedValues.data as T }
+			return [parsedValues.data as T, null]
 		} catch (error) {
 			const formattedError = getFormattedError(error)
-			return {
-				success: false,
-				error: formattedError
-			}
+			return [null, formattedError]
 		}
 	}
 
@@ -375,10 +371,10 @@ export function createActionBuilder<Context, Meta>(
 				rawInput
 			})
 
-			return { success: true, data: ctx as T }
+			return [ctx as T, null]
 		} catch (error) {
 			const formattedError = getFormattedError(error)
-			return { success: false, error: formattedError }
+			return [null, formattedError]
 		}
 	}
 
@@ -413,19 +409,19 @@ export function createActionBuilder<Context, Meta>(
 					const outputSchema = combineSchema(outputs)
 
 					const inputParseResult = parseSchema(inputSchema, rawInput, "input")
-					if (!isSuccess(inputParseResult)) {
-						throw new ActionError(inputParseResult.error)
+					if (isFailure(inputParseResult)) {
+						throw new ActionError(inputParseResult[1])
 					}
-					parsedInput = inputParseResult?.data as Success<any>["data"]
+					parsedInput = inputParseResult[0]
 
 					const ctxResult = await executeMiddleware({
 						rawInput,
 						input: parsedInput
 					})
-					if (!isSuccess(ctxResult)) {
-						throw new ActionError(ctxResult.error)
+					if (isFailure(ctxResult)) {
+						throw new ActionError(ctxResult[1])
 					}
-					ctx = ctxResult?.data as Context
+					ctx = ctxResult[0] as Context
 
 					const rawData = await handler({
 						ctx,
@@ -433,10 +429,10 @@ export function createActionBuilder<Context, Meta>(
 					})
 
 					const outputParseResult = parseSchema(outputSchema, rawData, "output")
-					if (!isSuccess(outputParseResult)) {
-						throw new ActionError(outputParseResult.error)
+					if (isFailure(outputParseResult)) {
+						throw new ActionError(outputParseResult[1])
 					}
-					parsedOutput = outputParseResult?.data as Success<any>["data"]
+					parsedOutput = outputParseResult[0]
 
 					await executeHooks(hooks["onSuccess"], {
 						ctx,
@@ -445,7 +441,7 @@ export function createActionBuilder<Context, Meta>(
 						input: parsedInput
 					})
 
-					return { success: true, data: parsedOutput ?? rawData }
+					return [parsedOutput ?? rawData, null]
 				} catch (error) {
 					const formattedError = getFormattedError(error)
 
@@ -471,7 +467,7 @@ export function createActionBuilder<Context, Meta>(
 						error: formattedError
 					})
 
-					return { success: false, error: formattedError }
+					return [null, formattedError]
 				} finally {
 					await executeHooks(hooks["onSettled"], {
 						ctx,
