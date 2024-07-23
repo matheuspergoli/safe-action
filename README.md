@@ -216,18 +216,18 @@ import { myAction } from "src/server/user"
 
 export default async function Page() {
   // ✅ Parameters typed according to input parsers
-  const result = await myAction({ name: "John doe", age: 30 })
+  const { data, error } = await myAction({ name: "John doe", age: 30 })
 
   return (
     <div>
       {/* ⚠️ Always check to access the data */}
-      {result.success ? (
+      {data ? (
         <>
-          <h1>{result.data.name}</h1>
-          <p>{result.data.age}</p>
+          <h1>{data.name}</h1>
+          <p>{data.age}</p>
         </>
       ) : (
-        <div>{result.error.message}</div>
+        <div>{error.message}</div>
       )}
     </div>
   )
@@ -256,12 +256,12 @@ export const useCustomHook = () => {
 
   const randomName = ({ name, age }: Data) => {
     startTransition(async () => {
-      const result = await myAction({ name, age })
+      const { data, error } = await myAction({ name, age })
 
-      if (!result.success) {
+      if (error) {
         // ✅ You can show an alert or toast to the user
         toast("Something went wrong", {
-          description: result.error.message
+          description: error.message
         })
 
         // ⚠️ return to stop the flow so the success result will be inferred
@@ -269,7 +269,7 @@ export const useCustomHook = () => {
       }
 
       toast("Action executed successfully", {
-        description: `Data received ${result.data.name} ${result.data.age}`
+        description: `Data received ${data.name} ${data.age}`
       })
     })
   }
