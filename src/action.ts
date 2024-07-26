@@ -11,7 +11,7 @@ type CreateActionBuilderProps = {
 	context?: ContextFn
 }
 
-class CreateActionBuilder<Context, Meta> {
+export class CreateActionBuilder<Context, Meta> {
 	#meta: object | undefined = undefined
 	#context: ContextFn | undefined = undefined
 

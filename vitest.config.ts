@@ -14,7 +14,6 @@ export default defineConfig({
 				"**/node_modules/**",
 				"**/dist/**",
 				"**/utils.ts",
-				"**/errors.ts",
 				"**/index.ts",
 				"**/*.spec.ts"
 			]
