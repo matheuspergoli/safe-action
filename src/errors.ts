@@ -1,7 +1,7 @@
 import { isNotFoundError } from "next/dist/client/components/not-found"
 import { isRedirectError } from "next/dist/client/components/redirect"
 
-import type { MaybePromise } from "./utils"
+import { isObject, type MaybePromise } from "./utils"
 
 export type Code =
 	| "UNAUTHORIZED"
@@ -19,7 +19,7 @@ export type Code =
 	| "MIDDLEWARE_ERROR"
 	| "NEXT_ERROR"
 
-const DEFAULT_ERROR_MESSAGES: Readonly<Record<Code, string>> = {
+export const DEFAULT_ERROR_MESSAGES: Readonly<Record<Code, string>> = {
 	ERROR: "Error",
 	TIMEOUT: "Timeout",
 	CONFLICT: "Conflict",
@@ -36,15 +36,11 @@ const DEFAULT_ERROR_MESSAGES: Readonly<Record<Code, string>> = {
 	PARSE_OUTPUT_ERROR: "Error parsing output"
 }
 
-class UnknownCauseError extends Error {
+export class UnknownCauseError extends Error {
 	[key: string]: unknown
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> => {
-	return !!value && !Array.isArray(value) && typeof value === "object"
-}
-
-const getCauseFromUnknown = (cause: unknown): Error | undefined => {
+export const getCauseFromUnknown = (cause: unknown): Error | undefined => {
 	if (cause instanceof Error) {
 		return cause
 	}
