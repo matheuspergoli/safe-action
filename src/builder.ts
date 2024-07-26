@@ -290,7 +290,10 @@ export function createActionBuilder<Context, Meta>(
 				}
 			}
 
-			return { data, error: null }
+			return {
+				data: (parsedValues.data as T) ?? (data as T),
+				error: null
+			}
 		} catch (error) {
 			const formattedError = getFormattedError(error)
 			return { data: null, error: formattedError }
@@ -357,7 +360,7 @@ export function createActionBuilder<Context, Meta>(
 		try {
 			let defaultContext
 
-			if (_def.defaultContext) {
+			if (_def.defaultContext instanceof Function) {
 				defaultContext = _def.defaultContext()
 			}
 
