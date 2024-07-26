@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { createActionBuilder } from "./builder"
-import { ActionError } from "./errors"
+import { ActionError, type JSONError } from "./errors"
 
 const contextValues = { userId: 1 }
 const contextSync = () => {
@@ -530,5 +530,40 @@ describe("builder", () => {
 
 		expect(result1.error).toEqual(errorBultinObj)
 		expect(result2.error).toEqual(jsonErrorObj)
+	})
+
+	it("should create action with error handler and call it", async () => {
+		const errorHandler1 = (error: JSONError) => {
+			expect(error).toBeDefined()
+			expect(error.cause).toBeUndefined()
+			expect(error.code).toEqual("ERROR")
+			expect(error.message).toEqual("error")
+		}
+
+		const errorHandler2 = (error: JSONError) => {
+			expect(error).toBeDefined()
+			expect(error.cause).toBeUndefined()
+			expect(error.code).toEqual("ERROR")
+			expect(error.message).toEqual("Error")
+		}
+
+		const action1 = createActionBuilder<unknown, unknown>({ errorHandler: errorHandler1 })
+		const action2 = createActionBuilder<unknown, unknown>({ errorHandler: errorHandler2 })
+
+		const execute1 = action1.execute(async () => {
+			throw new Error("error")
+		})
+		const execute2 = action2.execute(async () => {
+			throw new ActionError({ code: "ERROR" })
+		})
+
+		await execute1()
+		await execute2()
+
+		expect(action1).toBeDefined()
+		expect(action1._def.errorHandler).toEqual(errorHandler1)
+
+		expect(action2).toBeDefined()
+		expect(action2._def.errorHandler).toEqual(errorHandler2)
 	})
 })
