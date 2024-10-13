@@ -1,4 +1,4 @@
-import { createActionBuilder, type ActionBuilder } from "./builder"
+import { createActionBuilder, type ActionBuilder, type MiddlewareFn } from "./builder"
 import { ActionError, type ErrorHandler } from "./errors"
 import type { MaybePromise } from "./utils"
 
@@ -9,6 +9,13 @@ type Unwrap<T> = T extends () => Promise<infer U> ? Awaited<U> : T extends () =>
 type CreateActionBuilderProps = {
 	meta?: object
 	context?: ContextFn
+}
+
+interface CreateActionClientReturn<Context, Meta> {
+	create: ActionBuilder<unknown, unknown, Unwrap<Context>, Meta>
+	middleware<NextContext>(
+		middleware: MiddlewareFn<Unwrap<Context>, NextContext, unknown, Meta>
+	): MiddlewareFn<Unwrap<Context>, NextContext, unknown, Meta>
 }
 
 export class CreateActionBuilder<Context, Meta> {
@@ -30,9 +37,7 @@ export class CreateActionBuilder<Context, Meta> {
 		return new CreateActionBuilder<NewContext, Meta>({ meta: this.#meta, context: ctx })
 	}
 
-	create(opts?: {
-		errorHandler?: ErrorHandler
-	}): ActionBuilder<unknown, unknown, Unwrap<Context>, Meta> {
+	client(opts?: { errorHandler?: ErrorHandler }): CreateActionClientReturn<Context, Meta> {
 		if (opts && "errorHandler" in opts && typeof opts.errorHandler !== "function") {
 			throw new ActionError({
 				code: "ERROR",
@@ -42,11 +47,18 @@ export class CreateActionBuilder<Context, Meta> {
 
 		const errorHandler = opts && "errorHandler" in opts ? opts.errorHandler : undefined
 
-		return createActionBuilder<Unwrap<Context>, Meta>({
-			meta: this.#meta,
-			defaultContext: this.#context,
-			errorHandler: errorHandler as ErrorHandler
-		})
+		return {
+			middleware: <NextContext>(
+				middleware: MiddlewareFn<Unwrap<Context>, NextContext, unknown, Meta>
+			) => {
+				return middleware
+			},
+			create: createActionBuilder<Unwrap<Context>, Meta>({
+				meta: this.#meta,
+				defaultContext: this.#context,
+				errorHandler: errorHandler as ErrorHandler
+			})
+		}
 	}
 }
 
