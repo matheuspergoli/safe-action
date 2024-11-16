@@ -165,7 +165,7 @@ export type ActionBuilder<Input, Output, Context, Meta> = {
 	_def: ActionBuilderDef<Meta, Context>
 }
 
-export type MiddlewareFn<Context, NextContext, Input, Meta> = (opts: {
+type MiddlewareFn<Context, NextContext, Input, Meta> = (opts: {
 	meta: Meta
 	ctx: Context
 	input: Input

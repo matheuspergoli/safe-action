@@ -62,7 +62,7 @@ export const authedAction = action.middleware(async ({ ctx, next }) => {
     })
   }
 
-  // ⚠️ It is important to use the next() function to call the next middleware in the stack
+	// ⚠️ If you want to pass new context forward or modify, you must use the next() function
   return next({
     ctx: {
       session: ctx.session // ✅ Pass the context forward, inferring the session
@@ -201,7 +201,7 @@ export const myAction = authedAction.hook("onSuccess", async (opts) => {
   const { ctx, meta, input, rawInput } = opts
 
   // ✅ E.g. You can use hooks to monitor and use logs
-  await logger(`User with has logged in with data: ${input}`)
+  await logger(`User has logged in with data: ${input}`)
 }).hook("onSuccess", ({ rawInput }) => {
   console.log(`Input without validation: ${rawInput}`)
 }).hook("onError", async ({ rawInput, error }) => {
@@ -220,7 +220,7 @@ export default async function Page() {
 
   return (
     <div>
-      {/* ⚠️ Always check to access the data */}
+      {/* ⚠️ Always check to access the data and get inferred types */}
       {data ? (
         <>
           <h1>{data.name}</h1>
